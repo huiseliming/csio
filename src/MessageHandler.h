@@ -2,7 +2,7 @@
 
 
 
-
+class Message;
 
 
 class MessageHandler
@@ -10,5 +10,8 @@ class MessageHandler
 public:
     MessageHandler() = default;
     ~MessageHandler() = default;
-    
+    void operator()(Message message)
+    {
+        return true;
+    }
 };
