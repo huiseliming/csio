@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# git version configure file 
+include/Git.h
+
+# apple 
+.DS_store
+
+# configue file
+*.ini
