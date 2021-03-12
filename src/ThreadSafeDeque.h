@@ -1,4 +1,6 @@
 ﻿#pragma once
+#include <mutex>
+#include <deque>
 
 template<typename T>
 class TThreadSafeDeque;
@@ -39,13 +41,13 @@ public:
         return Deque.push_back(item);
     }
 
-    void emplace_front(T&& item)
+    decltype(auto) emplace_front(T&& item)
     {
         std::scoped_lock<std::mutex> Lock(Mutex);
         return Deque.emplace_front(std::forward<T>(item));
     }
 
-    void emplace_back(T&& item)
+    decltype(auto) emplace_back(T&& item)
     {
         std::scoped_lock<std::mutex> Lock(Mutex);
         return Deque.emplace_back(std::forward<T>(item));

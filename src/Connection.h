@@ -9,8 +9,8 @@ class CConnection;
 
 struct SMessagesTo
 {
-    std::shared_ptr<CConnection> remote;
-    SMessage msg;
+    std::shared_ptr<CConnection> RemoteConnection;
+    SMessage Message;
 };
 
 class CConnection :public std::enable_shared_from_this<CConnection>
@@ -29,6 +29,7 @@ public:
         kClient,
         kServer
     }Owner = EOwner::kUnknow;
+
 public:
     CConnection(EOwner owner, asio::io_context& IoContext, asio::ip::tcp::socket Socket, TThreadSafeDeque<SMessagesTo>& MessageToLocal)
         : IoContext(IoContext)
@@ -54,6 +55,7 @@ public:
                 if (!ErrorCode)
                 {
                     std::cout << "[Client] Connected!" << std::endl;
+                    SendMessageToRemote(SMessage(EMessageId::kConnectToClient));
                     ReadHeader();
                     State = EState::Connected;
                 }
@@ -73,6 +75,8 @@ public:
         {
             RemoteEndpoint = Socket.remote_endpoint();
             Id = Id;
+            State = EState::Connected;
+            SendMessageToRemote(SMessage(EMessageId::kConnectToClient));
             ReadHeader();
             return true;
         }
@@ -96,12 +100,12 @@ public:
 
     EState GetState() { return State; }
 
-    void SendMessageToRemote(const SMessage& msg)
+    void SendMessageToRemote(const SMessage& Msg)
     {
-        auto self(this->shared_from_this());
+        auto Self(this->shared_from_this());
         WriteStand.post(
-            [this, self, msg = msg]{
-                MessageToRemote.push_back(msg);
+            [this, Self, Msg = Msg]{
+                MessageToRemote.emplace_back(Msg);
                 if (MessageToRemote.size() <= 1)
                 {
                     WriteHeader();
@@ -109,12 +113,12 @@ public:
             });
     }
 
-    void SendMessageToRemote(SMessage&& msg)
+    void SendMessageToRemote(SMessage&& Msg)
     {
-        auto self(this->shared_from_this());
+        auto Self(this->shared_from_this());
         WriteStand.post(
-            [this, self, msg = std::forward<SMessage>(msg)]{
-                MessageToRemote.push_back(msg);
+            [this, Self, Msg = std::forward<SMessage>(Msg)]{
+                MessageToRemote.emplace_back(Msg);
                 if (MessageToRemote.size() <= 1)
                 {
                     WriteHeader();
@@ -144,22 +148,26 @@ public:
 
 protected:
 
-    virtual void OnException()
+    virtual void OnException(std::error_code& ErrorCode)
     {
         GetRemoteEndpoint().address().to_string();
-        std::cout << "[Connection] " << CSIO_FUNC_LINE << GetRemoteEndpointString() << " disconnect!\n";
+        std::cout << "[Connection] " << CSIO_FUNC_LINE << GetRemoteEndpointString() << " disconnect, ErrorCode: " << ErrorCode.message() <<"\n";
         Socket.close();
         State = EState::Disconnect;
     }
 
     virtual void ReadHeader()
     {
-        auto self(this->shared_from_this());
+        auto Self(this->shared_from_this());
         asio::async_read(Socket, asio::buffer(&MessageTemporaryRead.Header, sizeof(SMessageHeader)),
-            [this, self](std::error_code ec, std::size_t length)
+            [this, Self](std::error_code ErrorCode, std::size_t Length)
             {
-                if (!ec)
+                if (!ErrorCode)
                 {
+                    if(MessageTemporaryRead.Header.MessageId == 0)
+                    {
+                        return;
+                    }
                     if (MessageTemporaryRead.Header.DataSize > 0)
                     {
                         MessageTemporaryRead.UpdateDataSize();
@@ -174,36 +182,36 @@ protected:
                 }
                 else
                 {
-                    OnException();
+                    OnException(ErrorCode);
                 }
             });
     }
 
     virtual void ReadBody()
     {
-        auto self(this->shared_from_this());
+        auto Self(this->shared_from_this());
         asio::async_read(Socket, asio::buffer(MessageTemporaryRead.Data.data(), MessageTemporaryRead.Header.DataSize),
-            [this, self](std::error_code ec, std::size_t length)
+            [this, Self](std::error_code ErrorCode, std::size_t Length)
             {
-                if (!ec)
+                if (!ErrorCode)
                 {
                     AddMessageToQueue();
                     ReadHeader();
                 }
                 else
                 {
-                    OnException();
+                    OnException(ErrorCode);
                 }
             });
     }
 
     virtual void WriteHeader()
     {
-        auto self(this->shared_from_this());
+        auto Self(this->shared_from_this());
         asio::async_write(Socket, asio::buffer(&MessageToRemote.front().Header, sizeof(SMessageHeader)),
-            WriteStand.wrap([this, self](std::error_code ec, std::size_t length)
+            WriteStand.wrap([this, Self](std::error_code ErrorCode, std::size_t Length)
                 {
-                    if (!ec)
+                    if (!ErrorCode)
                     {
                         if (MessageToRemote.front().Header.DataSize > 0)
                         {
@@ -220,18 +228,18 @@ protected:
                     }
                     else
                     {
-                        OnException();
+                        OnException(ErrorCode);
                     }
                 }));
     }
 
     virtual void WriteBody()
     {
-        auto self(this->shared_from_this());
+        auto Self(this->shared_from_this());
         asio::async_write(Socket, asio::buffer(MessageToRemote.front().Data.data(), MessageToRemote.front().Header.DataSize),
-            WriteStand.wrap([this, self](std::error_code ec, std::size_t length)
+            WriteStand.wrap([this, Self](std::error_code ErrorCode, std::size_t Length)
                 {
-                    if (!ec)
+                    if (!ErrorCode)
                     {
                         MessageToRemote.pop_front();
                         if (!MessageToRemote.empty())
@@ -241,7 +249,7 @@ protected:
                     }
                     else
                     {
-                        OnException();
+                        OnException(ErrorCode);
                     }
                 }));
     }
@@ -249,9 +257,9 @@ protected:
     virtual void AddMessageToQueue()
     {
         if (Owner == EOwner::kServer)
-            MessageToLocal.push_back({ this->shared_from_this(), MessageTemporaryRead });
+            MessageToLocal.emplace_back({ this->shared_from_this(), std::move(MessageTemporaryRead) });
         else
-            MessageToLocal.push_back({ nullptr, MessageTemporaryRead });
+            MessageToLocal.emplace_back({ nullptr, std::move(MessageTemporaryRead) });
     }
 
 protected:

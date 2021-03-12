@@ -12,7 +12,7 @@ configure_file("Config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/ConfigImpl.h")
 
 # define library target
 
-add_library(${PROJECT_NAME} MODULE ${HeaderFiles} ${SourceFiles} "Message.cpp" "CSIODefines.h")
+add_library(${PROJECT_NAME} MODULE ${HeaderFiles} ${SourceFiles})
 
 target_include_directories(${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}/include/> # for client in subdirectory
                                                    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for generated files in build mode

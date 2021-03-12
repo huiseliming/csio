@@ -7,6 +7,16 @@ SMessage::SMessage()
 	Data.resize(0);
 }
 
+SMessage::SMessage(uint32_t MessageId)
+{
+	Header.MessageId = MessageId;
+}
+
+SMessage::SMessage(EMessageId MessageId)
+{
+	Header.MessageId = uint32_t(MessageId);
+}
+
 SMessage::SMessage(const SMessage& Message)
 {
 	Header = Message.Header;

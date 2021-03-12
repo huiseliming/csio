@@ -3,6 +3,27 @@ cmake_minimum_required(VERSION 3.17)
 # root CMakeLists.txt, specifies option and interface library
 project(csio)
 
+if(WIN32)
+    if(True)
+        add_definitions(-D _WIN32_WINNT=0x0601)
+    elseif()
+        # We have to set _WIN32_WINNT for Asio
+        if(${CMAKE_SYSTEM_VERSION} EQUAL 10) # Windows 10
+            add_definitions(-D _WIN32_WINNT=0x0A00)
+        elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.3) # Windows 8.1
+            add_definitions(-D _WIN32_WINNT=0x0603)
+        elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.2) # Windows 8
+            add_definitions(-D _WIN32_WINNT=0x0602)
+        elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.1) # Windows 7
+            add_definitions(-D _WIN32_WINNT=0x0601)
+        elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.0) # Windows Vista
+            add_definitions(-D _WIN32_WINNT=0x0600)
+        else() # Windows XP (5.1)
+            add_definitions(-D _WIN32_WINNT=0x0501)
+        endif()
+    endif()
+endif()
+
 set(${PROJECT_NAME}_VERSION_MAJOR 0 CACHE STRING "major version of memory" FORCE)
 set(${PROJECT_NAME}_VERSION_MINOR 7 CACHE STRING "minor version of memory" FORCE)
 set(${PROJECT_NAME}_VERSION_PATCH 0 CACHE STRING "patch version of memory" FORCE)
@@ -12,7 +33,12 @@ set(${PROJECT_NAME}_VERSION "${${PROJECT_NAME}_VERSION_MAJOR}.${${PROJECT_NAME}_
 set(OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/debug/)
 set(OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/release/)
 
-#ÉèÖÃ¶þ½øÖÆÎÄ¼þÊä³öÂ·¾¶
+# è®¾ç½®C++æ ‡å‡†
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+#è®¾ç½®äºŒè¿›åˆ¶æ–‡ä»¶è¾“å‡ºè·¯å¾„
 #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY        ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${OUTPUT_DIRECTORY_DEBUG}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${OUTPUT_DIRECTORY_RELEASE}/lib)
@@ -23,7 +49,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${OUTPUT_DIRECTORY_RELEASE}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${OUTPUT_DIRECTORY_DEBUG}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${OUTPUT_DIRECTORY_RELEASE}/bin)
 
-# ÉèÖÃ°²×°Ä¿±êÂ·¾¶
+#è®¾ç½®å®‰è£…ç›®æ ‡è·¯å¾„
 if(UNIX AND APPLE)
     include(GNUInstallDirs)
     set(${PROJECT_NAME}_INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}")
