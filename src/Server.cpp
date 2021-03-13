@@ -12,15 +12,19 @@ CServer::~CServer()
     Stop();
 }
 
-
-bool CServer::Start(uint16_t Port)
+bool CServer::Start(uint16_t Port, uint32_t NumThread)
 {
     try
     {
         Acceptor.bind(asio::ip::tcp::endpoint(asio::ip::tcp::v4(), Port));
         std::cout << "[Server] Start!" << std::endl;
         WaitForClientConnection();
-        Thread = std::move(std::thread([this] { IoContext.run(); }));
+        if(NumThread == 0)
+            NumThread = std::thread::hardware_concurrency();
+        for (size_t i = 0; i < NumThread; i++)
+        {
+            Threads.emplace_back(std::move(std::thread([this] { IoContext.run(); })));
+        }
     }
     catch (const std::exception& Expection)
     {
@@ -39,8 +43,11 @@ void CServer::Stop()
 
 void CServer::WaitThreadJoin()
 {
-    if (Thread.joinable())
-        Thread.join();
+    for (auto& Thread : Threads)
+    {
+        if (Thread.joinable())
+            Thread.join();
+    }
 }
 
 void CServer::WaitForClientConnection()
@@ -179,7 +186,16 @@ void CServer::Update(size_t MaxMessages)
     while (MessageCount < MaxMessages && !MessageToLocal.empty())
     {
         auto MsgTo = MessageToLocal.pop_front();
-        OnMessage(MsgTo.RemoteConnection, std::move(MsgTo.Message));
+        IMessageHandler* MessageHandler = nullptr;
+        if(MsgTo.Message.Header.MessageId < MessageHandlers.size())
+        {
+            MessageHandler = MessageHandlers[MsgTo.Message.Header.MessageId].get();
+        }
+        if(MessageHandler != nullptr){
+            (*MessageHandler)(std::move(MsgTo.Message.Data));
+        } else {
+            OnMessage(MsgTo.RemoteConnection, std::move(MsgTo.Message));
+        }
         MessageCount++;
         while (!SyncTaskQueue.empty())
         {
@@ -201,9 +217,26 @@ void CServer::OnClientDisconnect(std::shared_ptr<CConnection> Client)
     std::cout << "[Server] CurrentConnection: " << ConnectionCounter << "\n";
 }
 
-void CServer::OnMessage(std::shared_ptr<CConnection> Client, SMessage&& msg)
+void CServer::OnMessage(std::shared_ptr<CConnection> Client, SMessage&& Msg)
 {
+    std::cout << "[Server] OnMessage: MessageId(" << Msg.Header.MessageId << ") DataSize(" << Msg.Header.DataSize << ")\n";
+}
 
+void CServer::RegisterMessageHandler(EMessageId MsgId, std::unique_ptr<IMessageHandler>&& MsgHandlerPtr) 
+{
+    if(MessageHandlers.size() > uint32_t(MsgId))
+    {
+        MessageHandlers.resize(uint32_t(MsgId) + 1);
+    }
+    MessageHandlers[uint32_t(MsgId)] = std::move(MsgHandlerPtr);
+}
+
+void CServer::DeregisterMessageHandler(EMessageId MsgId) 
+{
+    if(MessageHandlers.size() > uint32_t(MsgId))
+    {
+        MessageHandlers[uint32_t(MsgId)].reset();
+    }
 }
 
 

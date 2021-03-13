@@ -1,17 +1,9 @@
 ﻿#pragma once
+#include <vector>
 
-
-
-class Message;
-
-
-class MessageHandler
+struct IMessageHandler
 {
-public:
-    MessageHandler() = default;
-    ~MessageHandler() = default;
-    void operator()(Message message)
-    {
-        return true;
-    }
+    IMessageHandler() = default;
+    virtual ~IMessageHandler() = default;
+    virtual void operator()(std::vector<uint8_t> Data) = 0;
 };

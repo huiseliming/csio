@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "IServer.h"
-
+#include <memory>
+#include <vector>
 
 class CServer : public IServer
 {
@@ -9,7 +10,7 @@ public:
 
     virtual ~CServer() override;
 
-    virtual bool Start(uint16_t Port) override;
+    virtual bool Start(uint16_t Port, uint32_t NumThread = 0) override;
 
     virtual void Stop() override;
 
@@ -39,8 +40,16 @@ protected:
 
     asio::io_context IoContext;
     asio::io_context::strand ConnectionsStrand;
-    std::thread Thread;
+    std::vector<std::thread> Threads;
     asio::ip::tcp::acceptor Acceptor;
 
     TTSQueue<std::function<void()>> SyncTaskQueue;
+
+public:
+    void RegisterMessageHandler(EMessageId MsgId, std::unique_ptr<IMessageHandler>&& MsgHandlerPtr) ;
+
+    void DeregisterMessageHandler(EMessageId MsgId);
+
+    std::vector<std::unique_ptr<IMessageHandler>> MessageHandlers;
+
 };

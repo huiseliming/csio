@@ -6,6 +6,7 @@
 #include <asio.hpp>
 #include <string_view>
 #include "Connection.h"
+#include "MessageHandler.h"
 
 class NetworkHelper
 {
@@ -28,7 +29,7 @@ public:
     IServer() = default;
     virtual ~IServer() = default;
 
-    virtual bool Start(uint16_t Port) = 0;
+    virtual bool Start(uint16_t Port, uint32_t NumThread = 0) = 0;
 
     virtual void Stop() = 0;
 
