@@ -46,5 +46,5 @@ public:
     // Callback on Client disconnect
     virtual void OnClientDisconnect(std::shared_ptr<CConnection> ConnectionPtr) = 0;
     // Callback on Client SMessage reach
-    virtual void OnMessage(std::shared_ptr<CConnection> Client, SMessage&& msg) = 0;
+    virtual void OnMessage(std::shared_ptr<CConnection> Client, SMessage&& Msg) = 0;
 };

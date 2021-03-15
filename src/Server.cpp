@@ -185,12 +185,8 @@ void CServer::Update(size_t MaxMessages)
     size_t MessageCount = 0;
     while (MessageCount < MaxMessages && !MessageToLocal.empty())
     {
-        auto MsgTo = MessageToLocal.pop_front();
-        IMessageHandler* MessageHandler = nullptr;
-        if(MsgTo.Message.Header.MessageId < MessageHandlers.size())
-        {
-            MessageHandler = MessageHandlers[MsgTo.Message.Header.MessageId].get();
-        }
+        auto MsgTo = std::move(MessageToLocal.pop_front());
+        IMessageHandler* MessageHandler = MessageHandlerManager.GetMessageHandler(MsgTo.Message.Header.MessageId);
         if(MessageHandler != nullptr){
             (*MessageHandler)(std::move(MsgTo.Message.Data));
         } else {
@@ -220,23 +216,6 @@ void CServer::OnClientDisconnect(std::shared_ptr<CConnection> Client)
 void CServer::OnMessage(std::shared_ptr<CConnection> Client, SMessage&& Msg)
 {
     std::cout << "[Server] OnMessage: MessageId(" << Msg.Header.MessageId << ") DataSize(" << Msg.Header.DataSize << ")\n";
-}
-
-void CServer::RegisterMessageHandler(EMessageId MsgId, std::unique_ptr<IMessageHandler>&& MsgHandlerPtr) 
-{
-    if(MessageHandlers.size() > uint32_t(MsgId))
-    {
-        MessageHandlers.resize(uint32_t(MsgId) + 1);
-    }
-    MessageHandlers[uint32_t(MsgId)] = std::move(MsgHandlerPtr);
-}
-
-void CServer::DeregisterMessageHandler(EMessageId MsgId) 
-{
-    if(MessageHandlers.size() > uint32_t(MsgId))
-    {
-        MessageHandlers[uint32_t(MsgId)].reset();
-    }
 }
 
 

@@ -46,10 +46,7 @@ protected:
     TTSQueue<std::function<void()>> SyncTaskQueue;
 
 public:
-    void RegisterMessageHandler(EMessageId MsgId, std::unique_ptr<IMessageHandler>&& MsgHandlerPtr) ;
-
-    void DeregisterMessageHandler(EMessageId MsgId);
-
-    std::vector<std::unique_ptr<IMessageHandler>> MessageHandlers;
-
+    CMessageHandlerManager& GetMessageHandlerManager();
+protected: 
+    CMessageHandlerManager MessageHandlerManager;
 };
