@@ -1,19 +1,36 @@
 # set headers
-set(HeaderPath "${HSLM_CSIO_SOURCE_DIR}/include/hslm_csio")
-file(GLOB_RECURSE HeaderFiles 
-    ${HSLM_CSIO_SOURCE_DIR}/include/*.h
-)
-file(GLOB_RECURSE SourceFiles 
-    ${HSLM_CSIO_SOURCE_DIR}/src/*.cpp
-)
+set(header_path "${HSLM_CSIO_SOURCE_DIR}/include/hslm_csio")
+
+#file(GLOB_RECURSE HeaderFiles 
+#    ${HSLM_CSIO_SOURCE_DIR}/include/*.h
+#)
+#
+#file(GLOB_RECURSE SourceFiles 
+#    ${HSLM_CSIO_SOURCE_DIR}/src/*.cpp
+#)
+
+set(hslm_csio_header
+    ${header_path}/Client.h
+    ${header_path}/Connection.h
+    ${header_path}/HslmDefines.h
+    ${header_path}/Message.h
+    ${header_path}/MessageHandler.h
+    ${header_path}/Server.h
+    ${header_path}/ThreadSafeDeque.h)
+set(hslm_csio_source
+    Connection.cpp
+    Message.cpp
+    MessageHandler.cpp
+    Server.cpp
+    Client.cpp)
 
 # configure Config.h.in
-configure_file("Config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/ConfigImpl.h")
+#configure_file("Config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/ConfigImpl.h")
 
 # define library target
 
-add_library(hslm_csio ${HeaderFiles} ${SourceFiles})
-
+add_library(hslm_csio ${hslm_csio_header} ${hslm_csio_source})
+add_dependencies(hslm_csio check_git)
 target_include_directories(hslm_csio PUBLIC $<BUILD_INTERFACE:${HSLM_CSIO_SOURCE_DIR}/include/> # for client in subdirectory
                                             $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for generated files in build mode
                                             $<INSTALL_INTERFACE:${HSLM_CSIO_INCLUDE_INSTALL_DIR}> # for client in install mode

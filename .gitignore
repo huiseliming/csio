@@ -60,4 +60,4 @@ _deps
 out/
 build/
 .vs/
-
+include/hslm_csio/CsioConfig.h

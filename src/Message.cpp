@@ -1,4 +1,4 @@
-﻿#include "Message.h"
+﻿#include "hslm_csio/Message.h"
 
 SMessage::SMessage()
 {
@@ -7,14 +7,20 @@ SMessage::SMessage()
 	Data.resize(0);
 }
 
-SMessage::SMessage(uint32_t MessageId)
-{
-	Header.MessageId = MessageId;
-}
-
 SMessage::SMessage(EMessageId MessageId)
 {
 	Header.MessageId = uint32_t(MessageId);
+}
+
+SMessage::SMessage(EMessageId MessageId, std::vector<uint8_t>& Data)
+{
+	Header.MessageId = uint32_t(MessageId);
+	this->Data = Data;
+}
+SMessage::SMessage(EMessageId MessageId, std::vector<uint8_t>&& Data)
+{
+	Header.MessageId = uint32_t(MessageId);
+	this->Data = std::move(Data);
 }
 
 SMessage::SMessage(const SMessage& Message)
@@ -56,7 +62,12 @@ void SMessage::Reset()
 	Data.resize(0);
 }
 
-void SMessage::UpdateDataSize()
+void SMessage::GenerateHeaderDataSize()
+{
+	Header.DataSize = Data.size();
+}
+
+void SMessage::ResizeDataSize()
 {
 	Data.resize(Header.DataSize);
 }

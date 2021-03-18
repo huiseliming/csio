@@ -1,4 +1,27 @@
 
+
+# set output directory
+macro(SET_WIN32_WINNT)
+    if(WIN32)
+        # set _WIN32_WINNT
+        if(${CMAKE_SYSTEM_VERSION} EQUAL 10) # Windows 10
+            add_definitions(-D _WIN32_WINNT=0x0A00)
+        elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.3) # Windows 8.1
+            add_definitions(-D _WIN32_WINNT=0x0603)
+        elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.2) # Windows 8
+            add_definitions(-D _WIN32_WINNT=0x0602)
+        elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.1) # Windows 7
+            add_definitions(-D _WIN32_WINNT=0x0601)
+        elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.0) # Windows Vista
+            add_definitions(-D _WIN32_WINNT=0x0600)
+        else() # Windows XP (5.1)
+            add_definitions(-D _WIN32_WINNT=0x0501)
+        endif()
+    endif()
+endmacro()
+
+
+
 # set output directory
 macro(SET_OUTPUT_DIRECTORY output_directory)
 	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${output_directory}/lib)

@@ -1,4 +1,4 @@
-﻿#include "Server.h"
+﻿#include "hslm_csio/Server.h"
 
 CServer::CServer()
     : Acceptor(IoContext)
@@ -16,7 +16,11 @@ bool CServer::Start(uint16_t Port, uint32_t NumThread)
 {
     try
     {
-        Acceptor.bind(asio::ip::tcp::endpoint(asio::ip::tcp::v4(), Port));
+        auto Endpoint = asio::ip::tcp::endpoint(asio::ip::tcp::v4(), Port);
+        Acceptor.open(Endpoint.protocol());
+        Acceptor.set_option(asio::ip::tcp::acceptor::reuse_address(true));
+        Acceptor.bind(Endpoint);
+        Acceptor.listen();
         std::cout << "[Server] Start!" << std::endl;
         WaitForClientConnection();
         if(NumThread == 0)
@@ -109,8 +113,45 @@ void CServer::MessageClient(SMessage&& Msg, std::string Address, uint16_t Port)
             {
                 if (Client->IsConnected())
                 {
-                    if (Client->GetRemoteEndpoint().address() == Address
-                        && (Port == 0 || Port == Client->GetRemoteEndpoint().port()))
+                    if ((Port == 0 || Port == Client->GetRemoteEndpoint().port()))
+                    {
+                        Client->SendMessageToRemote(std::move(Msg));
+                    }
+                }
+                else
+                {
+                    OnClientDisconnect(Client);
+                    Client.reset();
+                    bInvalidClientExists = true;
+                }
+            }
+            if (bInvalidClientExists)
+            {
+                Iterator->second.erase(std::remove(std::begin(Iterator->second), std::end(Iterator->second), nullptr), std::end(Iterator->second));
+            }
+        }
+    });
+}
+
+void CServer::MessageClient(SMessage&& Msg, uint32_t Uint32Address, uint16_t Port)
+{
+    ConnectionsStrand.post(
+        [this, Port, Msg = std::move(Msg), Uint32Address = std::move(Uint32Address)]() mutable {
+        asio::error_code ErrorCode;
+        if (ErrorCode)
+        {
+            std::cout << "[Server] Parse Address Error: " << ErrorCode.message() << std::endl;
+            return;
+        }
+        auto Iterator = ConnectionMap.find(Uint32Address);
+        if (Iterator != std::end(ConnectionMap))
+        {
+            bool bInvalidClientExists = false;
+            for (auto Client : Iterator->second)
+            {
+                if (Client->IsConnected())
+                {
+                    if ((Port == 0 || Port == Client->GetRemoteEndpoint().port()))
                     {
                         Client->SendMessageToRemote(std::move(Msg));
                     }
@@ -186,11 +227,24 @@ void CServer::Update(size_t MaxMessages)
     while (MessageCount < MaxMessages && !MessageToLocal.empty())
     {
         auto MsgTo = std::move(MessageToLocal.pop_front());
-        IMessageHandler* MessageHandler = MessageHandlerManager.GetMessageHandler(MsgTo.Message.Header.MessageId);
-        if(MessageHandler != nullptr){
-            (*MessageHandler)(std::move(MsgTo.Message.Data));
-        } else {
-            OnMessage(MsgTo.RemoteConnection, std::move(MsgTo.Message));
+        // If is has forward bit
+        if((uint32_t(EMessageId::kForwardMessageBit) & MsgTo.Message.Header.MessageId) != 0) {
+            uint32_t DataSize = MsgTo.Message.Data.size();
+            uint8_t* DataPtr = MsgTo.Message.Data.data();
+            uint32_t Uint32IP = *(uint32_t*)(DataPtr + DataSize - sizeof(uint32_t));
+            uint16_t Port = *(uint16_t*)(DataPtr + DataSize - sizeof(uint32_t) - sizeof(uint16_t));
+            MsgTo.Message.Data.resize(MsgTo.Message.Data.size() - sizeof(uint32_t) - sizeof(uint16_t));
+            MessageClient(std::move(MsgTo.Message), Uint32IP, Port);
+        }
+        else
+        {
+            //Find Handler
+            IMessageHandler* MessageHandler = MessageHandlerManager.GetMessageHandler(MsgTo.Message.Header.MessageId);
+            if(MessageHandler != nullptr){
+                (*MessageHandler)(std::move(MsgTo.Message.Data));
+            } else {
+                OnMessage(MsgTo.RemoteConnection, std::move(MsgTo.Message));
+            }
         }
         MessageCount++;
         while (!SyncTaskQueue.empty())
@@ -219,7 +273,10 @@ void CServer::OnMessage(std::shared_ptr<CConnection> Client, SMessage&& Msg)
 }
 
 
-
+CMessageHandlerManager& CServer::GetMessageHandlerManager()
+{
+    return MessageHandlerManager;
+}
 
 
 
