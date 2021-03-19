@@ -20,7 +20,6 @@ enum class EMessageId : uint32_t
 };
 
 
-
 struct SMessageHeader
 {
     uint32_t MessageId;

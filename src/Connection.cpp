@@ -1,7 +1,7 @@
 #include "hslm_csio/Connection.h"
 #include <iostream>
 
-CConnection::CConnection(EOwner owner, asio::io_context& IoContext, asio::ip::tcp::socket Socket, TThreadSafeDeque<SMessagesTo>& MessageToLocal)
+CConnection::CConnection(EOwner owner, asio::io_context& IoContext, asio::ip::tcp::socket Socket, TThreadSafeDeque<SMessageTo>& MessageToLocal)
     : IoContext(IoContext)
     , WriteStand(IoContext)
     , Socket(std::move(Socket))
@@ -25,9 +25,9 @@ bool CConnection::ConnectToServer(const asio::ip::tcp::resolver::results_type& E
             if (!ErrorCode)
             {
                 std::cout << "[Client] Connected!" << std::endl;
-                SendMessageToRemote(SMessage(EMessageId::kConnectToClient));
-                ReadHeader();
                 State = EState::Connected;
+                SendMessageToRemote(SMessage(EMessageId::kConnectToServer));
+                ReadHeader();
             }
             else
             {
@@ -55,20 +55,23 @@ bool CConnection::ConnectToClient(uint32_t Id)
 
 void CConnection::Disconnect()
 {
-    if (IsConnected())
-    {
-        asio::post(IoContext, [this]() {
-            Socket.close();
-            State = EState::Disconnect;
-            });
-    }
+    auto Self(this->shared_from_this());
+    asio::post(IoContext, [this, Self]() {
+            if (IsConnected())
+            {
+                Socket.shutdown(asio::ip::tcp::socket::shutdown_both);
+                Socket.close();
+                State = EState::Disconnect;
+            }
+        });
 }
+
 void CConnection::SendMessageToRemote(const SMessage& Msg)
 {
     auto Self(this->shared_from_this());
     WriteStand.post(
         [this, Self, Msg = Msg] {
-            MessageToRemote.emplace_back(Msg);
+            MessageToRemote.emplace_back(std::move(Msg));
             if (MessageToRemote.size() <= 1)
             {
                 WriteHeader();
@@ -80,8 +83,8 @@ void CConnection::SendMessageToRemote(SMessage&& Msg)
 {
     auto Self(this->shared_from_this());
     WriteStand.post(
-        [this, Self, Msg = std::forward<SMessage>(Msg)]{
-            MessageToRemote.emplace_back(Msg);
+        [this, Self, Msg = std::move(Msg)]{
+            MessageToRemote.emplace_back(std::move(Msg));
             if (MessageToRemote.size() <= 1)
             {
                 WriteHeader();
@@ -89,12 +92,22 @@ void CConnection::SendMessageToRemote(SMessage&& Msg)
         });
 }
 
-void CConnection::OnException(std::error_code& ErrorCode)
+void CConnection::OnError(std::error_code& ErrorCode)
 {
-    GetRemoteEndpoint().address().to_string();
-    std::cout << "[Connection] " << CSIO_FUNC_LINE << GetRemoteEndpointString() << " disconnect, ErrorCode: " << ErrorCode.message() << "\n";
+    // Just handle first error code 
+    if (!IsConnected())
+        return;
+    // remote is shutdown if eof 
+    if(asio::error::eof == ErrorCode)
+    {
+        State = EState::Disconnect;
+    } else { 
+        State = EState::ErrorOccurred;
+        GetRemoteEndpoint().address().to_string();
+        std::cout << "[Connection] " << HSLM_FUNC_LINE << GetRemoteEndpointString() << " disconnect, ErrorCode: " << ErrorCode.message() << "\n";
+    }
+    // close socket, return false when IsConnected(asio::ip::tcp::socket::is_open()) check 
     Socket.close();
-    State = EState::Exception;
 }
 
 void CConnection::ReadHeader()
@@ -119,7 +132,7 @@ void CConnection::ReadHeader()
             }
             else
             {
-                OnException(ErrorCode);
+                OnError(ErrorCode);
             }
         });
 }
@@ -137,7 +150,7 @@ void CConnection::ReadBody()
             }
             else
             {
-                OnException(ErrorCode);
+                OnError(ErrorCode);
             }
         });
 }
@@ -166,7 +179,7 @@ void CConnection::WriteHeader()
                 }
                 else
                 {
-                    OnException(ErrorCode);
+                    OnError(ErrorCode);
                 }
             }));
 }
@@ -187,7 +200,7 @@ void CConnection::WriteBody()
                 }
                 else
                 {
-                    OnException(ErrorCode);
+                    OnError(ErrorCode);
                 }
             }));
 }

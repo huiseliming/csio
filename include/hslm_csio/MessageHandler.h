@@ -24,13 +24,13 @@ struct IMessageHandler
 {
     IMessageHandler() = default;
     virtual ~IMessageHandler() = default;
-    virtual void operator()(std::vector<uint8_t> Data) = 0;
+    virtual void operator()(std::vector<uint8_t>&& Data) = 0;
 };
 
 class CTestMessageHandler : public IMessageHandler
 {
 
-    virtual void operator()(std::vector<uint8_t> Data)
+    virtual void operator()(std::vector<uint8_t>&& Data)
     {
         std::string str;
         str.append((char*)Data.data(), Data.size());

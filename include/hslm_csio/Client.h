@@ -51,7 +51,7 @@ protected:
     std::shared_ptr<CConnection> ConnectionPtr;
 
 private:
-    TThreadSafeDeque<SMessagesTo> MessageToLocal;
+    TThreadSafeDeque<SMessageTo> MessageToLocal;
     std::unique_ptr<asio::io_service::work> IdleWorkPtr;
 
 public:

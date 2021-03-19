@@ -29,21 +29,21 @@ public:
     IServer() = default;
     virtual ~IServer() = default;
 
-    virtual bool Start(uint16_t Port, uint32_t NumThread = 0) = 0;
+    virtual bool Start(uint16_t Port, uint32_t NumThread) = 0;
 
     //virtual bool IsRunning() = 0;
 
     virtual void Stop() = 0;
 
-    virtual void MessageClient(SMessage&& Msg, std::string Address, uint16_t Port = 0) = 0;
+    virtual void MessageClient(SMessage&& Msg, std::string Address, uint16_t Port) = 0;
 
-    virtual void MessageClient(SMessage&& Msg, uint32_t Uint32Address, uint16_t Port = 0) = 0;
+    virtual void MessageClient(SMessage&& Msg, uint32_t Uint32Address, uint16_t Port) = 0;
 
     virtual void MessageClient(SMessage&& Msg, std::shared_ptr<CConnection> Client) = 0;
 
-    virtual void MessageAllClients(SMessage&& Msg, std::shared_ptr<CConnection> IgnoreClientPtr = nullptr) = 0;
+    virtual void MessageAllClients(SMessage&& Msg, std::shared_ptr<CConnection> IgnoreClientPtr) = 0;
 
-    virtual void Update(size_t MaxMessages = -1) = 0;
+    virtual void Update(size_t MaxMessages) = 0;
 
     // Callback on Client connect , return false refuse CConnection
     virtual bool OnClientConnect(std::shared_ptr<CConnection> ConnectionPtr) = 0;
@@ -87,7 +87,7 @@ protected:
 
     uint32_t ConnectionCounter = 0;
 
-    TThreadSafeDeque<SMessagesTo> MessageToLocal;
+    TThreadSafeDeque<SMessageTo> MessageToLocal;
     std::unordered_map<uint32_t, std::vector<std::shared_ptr<CConnection>>> ConnectionMap;
 
     asio::io_context IoContext;

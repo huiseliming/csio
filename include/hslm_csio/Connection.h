@@ -7,7 +7,7 @@
 
 class CConnection;
 
-struct SMessagesTo
+struct SMessageTo
 {
     std::shared_ptr<CConnection> RemoteConnection;
     SMessage Message;
@@ -21,7 +21,7 @@ public:
         Connecting,
         Connected,
         ConnectFailed,
-        Exception,
+        ErrorOccurred,
         Disconnect
     }State = EState::Undefine;
 
@@ -32,7 +32,7 @@ public:
     }Owner = EOwner::kUnknow;
 
 public:
-    CConnection(EOwner owner, asio::io_context& IoContext, asio::ip::tcp::socket Socket, TThreadSafeDeque<SMessagesTo>& MessageToLocal);
+    CConnection(EOwner owner, asio::io_context& IoContext, asio::ip::tcp::socket Socket, TThreadSafeDeque<SMessageTo>& MessageToLocal);
 
     virtual ~CConnection();
 
@@ -74,7 +74,7 @@ public:
 
 protected:
 
-    virtual void OnException(std::error_code& ErrorCode);
+    virtual void OnError(std::error_code& ErrorCode);
 
     virtual void ReadHeader();
 
@@ -95,7 +95,7 @@ protected:
     uint32_t Id = 0;
 
     std::deque<SMessage> MessageToRemote;
-    TThreadSafeDeque<SMessagesTo>& MessageToLocal;
+    TThreadSafeDeque<SMessageTo>& MessageToLocal;
     SMessage MessageTemporaryRead;
 
 
