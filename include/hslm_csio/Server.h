@@ -45,16 +45,18 @@ public:
 
     virtual void Update(size_t MaxMessages) = 0;
 
-    // Callback on Client connect , return false refuse CConnection
+    // Callback on Client connect , return false refuse CConnection, Called in io_context.run()
     virtual bool OnClientConnect(std::shared_ptr<CConnection> ConnectionPtr) = 0;
-    // Callback on Client disconnect
+    // Callback on Client disconnect, Called in io_context.run()
     virtual void OnClientDisconnect(std::shared_ptr<CConnection> ConnectionPtr) = 0;
-    // Callback on Client SMessage reach
+    // Callback on Client SMessage reach, Called Update(size_t MaxMessages)
     virtual void OnMessage(std::shared_ptr<CConnection> Client, SMessage&& Msg) = 0;
 };
 
 class CServer : public IServer
 {
+public:
+    friend class CConnection;
 public:
     CServer();
 
@@ -67,6 +69,8 @@ public:
     void WaitThreadJoin();
 
     void WaitForClientConnection();
+
+    void ServerSharedReferenceRemove(std::shared_ptr<CConnection> Client);
 
     virtual void MessageClient(SMessage&& Msg, std::string Address, uint16_t Port = 0) override;
 

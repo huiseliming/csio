@@ -1,18 +1,19 @@
-#include "hslm_csio/Connection.h"
 #include <iostream>
+#include "hslm_csio/Connection.h"
+#include "hslm_csio/Server.h"
 
-CConnection::CConnection(EOwner owner, asio::io_context& IoContext, asio::ip::tcp::socket Socket, TThreadSafeDeque<SMessageTo>& MessageToLocal)
+CConnection::CConnection(EOwner owner, asio::io_context& IoContext, asio::ip::tcp::socket Socket, TThreadSafeDeque<SMessageTo>& MessageToLocal, CServer* Server)
     : IoContext(IoContext)
-    , WriteStand(IoContext)
+    , WriteStrand(IoContext)
     , Socket(std::move(Socket))
     , MessageToLocal(MessageToLocal)
+    , Server(Server)
 {
     Owner = owner;
 }
 
 CConnection::~CConnection()
 {
-
 }
 
 bool CConnection::ConnectToServer(const asio::ip::tcp::resolver::results_type& Endpoints)
@@ -43,8 +44,9 @@ bool CConnection::ConnectToClient(uint32_t Id)
     assert(Owner == EOwner::kServer);
     if (Socket.is_open())
     {
+        ServerSharedRef.store(true);
         RemoteEndpoint = Socket.remote_endpoint();
-        Id = Id;
+        this->Id = Id;
         State = EState::Connected;
         SendMessageToRemote(SMessage(EMessageId::kConnectToClient));
         ReadHeader();
@@ -69,7 +71,7 @@ void CConnection::Disconnect()
 void CConnection::SendMessageToRemote(const SMessage& Msg)
 {
     auto Self(this->shared_from_this());
-    WriteStand.post(
+    WriteStrand.post(
         [this, Self, Msg = Msg] {
             MessageToRemote.emplace_back(std::move(Msg));
             if (MessageToRemote.size() <= 1)
@@ -82,7 +84,7 @@ void CConnection::SendMessageToRemote(const SMessage& Msg)
 void CConnection::SendMessageToRemote(SMessage&& Msg)
 {
     auto Self(this->shared_from_this());
-    WriteStand.post(
+    WriteStrand.post(
         [this, Self, Msg = std::move(Msg)]{
             MessageToRemote.emplace_back(std::move(Msg));
             if (MessageToRemote.size() <= 1)
@@ -92,22 +94,27 @@ void CConnection::SendMessageToRemote(SMessage&& Msg)
         });
 }
 
-void CConnection::OnError(std::error_code& ErrorCode)
+void CConnection::OnErrorCode(std::error_code& ErrorCode)
 {
-    // Just handle first error code 
-    if (!IsConnected())
-        return;
+    auto Self(this->shared_from_this());
     // remote is shutdown if eof 
-    if(asio::error::eof == ErrorCode)
+    if (State != EState::Disconnect && asio::error::eof == ErrorCode)
     {
         State = EState::Disconnect;
-    } else { 
+    } else {
         State = EState::ErrorOccurred;
-        GetRemoteEndpoint().address().to_string();
-        std::cout << "[Connection] " << HSLM_FUNC_LINE << GetRemoteEndpointString() << " disconnect, ErrorCode: " << ErrorCode.message() << "\n";
     }
-    // close socket, return false when IsConnected(asio::ip::tcp::socket::is_open()) check 
-    Socket.close();
+    std::cout << "[Connection] " << HSLM_FUNC_LINE << GetRemoteEndpointString() << " disconnect, ErrorCode: " << ErrorCode.message() << "\n";
+    if (Owner == EOwner::kServer){
+        bool Expected = true;
+        if(ServerSharedRef.compare_exchange_strong(Expected, false))
+        {
+            Server->OnClientDisconnect(shared_from_this());
+            Server->ServerSharedReferenceRemove(this->shared_from_this());
+            // close socket, return false when IsConnected(asio::ip::tcp::socket::is_open()) check 
+            Socket.close();
+        }
+    }
 }
 
 void CConnection::ReadHeader()
@@ -132,7 +139,7 @@ void CConnection::ReadHeader()
             }
             else
             {
-                OnError(ErrorCode);
+                OnErrorCode(ErrorCode);
             }
         });
 }
@@ -150,7 +157,7 @@ void CConnection::ReadBody()
             }
             else
             {
-                OnError(ErrorCode);
+                OnErrorCode(ErrorCode);
             }
         });
 }
@@ -160,7 +167,7 @@ void CConnection::WriteHeader()
     auto Self(this->shared_from_this());
     MessageToRemote.front().GenerateHeaderDataSize();
     asio::async_write(Socket, asio::buffer(&MessageToRemote.front().Header, sizeof(SMessageHeader)),
-        WriteStand.wrap([this, Self](std::error_code ErrorCode, std::size_t Length)
+        WriteStrand.wrap([this, Self](std::error_code ErrorCode, std::size_t Length)
             {
                 if (!ErrorCode)
                 {
@@ -179,7 +186,7 @@ void CConnection::WriteHeader()
                 }
                 else
                 {
-                    OnError(ErrorCode);
+                    OnErrorCode(ErrorCode);
                 }
             }));
 }
@@ -188,7 +195,7 @@ void CConnection::WriteBody()
 {
     auto Self(this->shared_from_this());
     asio::async_write(Socket, asio::buffer(MessageToRemote.front().Data.data(), MessageToRemote.front().Header.DataSize),
-        WriteStand.wrap([this, Self](std::error_code ErrorCode, std::size_t Length)
+        WriteStrand.wrap([this, Self](std::error_code ErrorCode, std::size_t Length)
             {
                 if (!ErrorCode)
                 {
@@ -200,15 +207,15 @@ void CConnection::WriteBody()
                 }
                 else
                 {
-                    OnError(ErrorCode);
+                    OnErrorCode(ErrorCode);
                 }
             }));
 }
 
 void CConnection::AddMessageToQueue()
 {
-    if (Owner == EOwner::kServer)
-        MessageToLocal.emplace_back({ this->shared_from_this(), std::move(MessageTemporaryRead) });
-    else
-        MessageToLocal.emplace_back({ nullptr, std::move(MessageTemporaryRead) });
+    //if (Owner == EOwner::kServer)
+    MessageToLocal.emplace_back({ this->shared_from_this(), std::move(MessageTemporaryRead) });
+    // else
+    //     MessageToLocal.emplace_back({ nullptr, std::move(MessageTemporaryRead) });
 }

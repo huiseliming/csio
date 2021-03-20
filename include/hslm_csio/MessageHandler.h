@@ -34,6 +34,6 @@ class CTestMessageHandler : public IMessageHandler
     {
         std::string str;
         str.append((char*)Data.data(), Data.size());
-        std::cout << str;
+        std::cout << str << "\n";
     }
 };

@@ -5,6 +5,7 @@
 #include "Message.h"
 #include "ThreadSafeDeque.h"
 
+class CServer;
 class CConnection;
 
 struct SMessageTo
@@ -32,7 +33,7 @@ public:
     }Owner = EOwner::kUnknow;
 
 public:
-    CConnection(EOwner owner, asio::io_context& IoContext, asio::ip::tcp::socket Socket, TThreadSafeDeque<SMessageTo>& MessageToLocal);
+    CConnection(EOwner owner, asio::io_context& IoContext, asio::ip::tcp::socket Socket, TThreadSafeDeque<SMessageTo>& MessageToLocal, CServer* Server = nullptr);
 
     virtual ~CConnection();
 
@@ -73,8 +74,7 @@ public:
     }
 
 protected:
-
-    virtual void OnError(std::error_code& ErrorCode);
+    virtual void OnErrorCode(std::error_code& ErrorCode);
 
     virtual void ReadHeader();
 
@@ -88,15 +88,17 @@ protected:
 
 protected:
     asio::io_context& IoContext;
-    asio::io_context::strand WriteStand;
+    asio::io_context::strand WriteStrand;
+    std::atomic<bool> ServerSharedRef;
+
     asio::ip::tcp::socket Socket;
     asio::ip::tcp::endpoint RemoteEndpoint;
-
+    
     uint32_t Id = 0;
 
     std::deque<SMessage> MessageToRemote;
     TThreadSafeDeque<SMessageTo>& MessageToLocal;
     SMessage MessageTemporaryRead;
 
-
+    CServer* Server;
 };

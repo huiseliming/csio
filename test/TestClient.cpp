@@ -14,6 +14,7 @@ int main()
 		if (MessageCounter > 100)
 		{
 			Client.MessageServer(SMessage(EMessageId::kCloseConnection));
+			Client.Disconnect();
 			break;
 		}
 		Client.MessageServer(SMessage(EMessageId::kTestMessage, { 'T', 'e', 's', 't' }));
@@ -24,6 +25,7 @@ int main()
 	{
 		std::cout << "[Client] ConnectFailed!\n";
 	}
+	system("pause");
 }
 
 
