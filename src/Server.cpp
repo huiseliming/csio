@@ -90,7 +90,8 @@ void CServer::WaitForClientConnection()
 			{
 				std::cout << "[Server] Accept Connection Error: " << ErrorCode.message() << "\n";
 			}
-		});
+		}
+	);
 }
 
 void CServer::ServerSharedReferenceRemove(std::shared_ptr<CConnection> Client)
@@ -117,7 +118,7 @@ void CServer::ServerSharedReferenceRemove(std::shared_ptr<CConnection> Client)
 void CServer::MessageClient(SMessage&& Msg, std::string Address, uint16_t Port)
 {
 	ConnectionsStrand.post(
-			[this, Port, Msg = std::move(Msg), AddressString = std::move(Address)]() mutable {
+			[this, Port, Msg = std::move(Msg), AddressString = std::move(Address)]() {
 			asio::error_code ErrorCode;
 			auto Address = asio::ip::address::from_string(AddressString, ErrorCode);
 			if (ErrorCode)
@@ -143,26 +144,26 @@ void CServer::MessageClient(SMessage&& Msg, std::string Address, uint16_t Port)
 void CServer::MessageClient(SMessage&& Msg, uint32_t Uint32Address, uint16_t Port)
 {
 	ConnectionsStrand.post(
-		[this, Port, Msg = std::move(Msg), Uint32Address = std::move(Uint32Address)]() mutable {
-		auto Iterator = ConnectionMap.find(Uint32Address);
-		if (Iterator != std::end(ConnectionMap))
-		{
-			for (auto Client : Iterator->second)
+		[this, Port, Msg = std::move(Msg), Uint32Address = std::move(Uint32Address)]() {
+			auto Iterator = ConnectionMap.find(Uint32Address);
+			if (Iterator != std::end(ConnectionMap))
 			{
-				if ((Port == 0 || Port == Client->GetRemoteEndpoint().port()))
+				for (auto Client : Iterator->second)
 				{
-					Client->SendMessageToRemote(std::move(Msg));
+					if ((Port == 0 || Port == Client->GetRemoteEndpoint().port()))
+					{
+						Client->SendMessageToRemote(std::move(Msg));
+					}
 				}
 			}
 		}
-	}
 	);
 }
 
 void CServer::MessageClient(SMessage&& Msg, std::shared_ptr<CConnection> Client)
 {
 	ConnectionsStrand.post(
-		[this, Client, Msg = std::move(Msg)]() mutable {
+		[this, Client, Msg = std::move(Msg)]() {
 		Client->SendMessageToRemote(std::move(Msg));
 	}
 	);
@@ -171,7 +172,7 @@ void CServer::MessageClient(SMessage&& Msg, std::shared_ptr<CConnection> Client)
 void CServer::MessageAllClients(SMessage&& Msg, std::shared_ptr<CConnection> IgnoreClientPtr)
 {
 	ConnectionsStrand.post(
-		[this, Msg = std::move(Msg), IgnoreClientPtr]()mutable{
+		[this, Msg = std::move(Msg), IgnoreClientPtr]() {
 		for (auto& Iterator : ConnectionMap)
 		{
 			for (auto Client : Iterator.second)
@@ -243,10 +244,3 @@ CMessageHandlerManager& CServer::GetMessageHandlerManager()
 {
 	return MessageHandlerManager;
 }
-
-
-
-
-
-
-
