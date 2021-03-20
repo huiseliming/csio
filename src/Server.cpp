@@ -62,15 +62,16 @@ void CServer::WaitForClientConnection()
 			if (!ErrorCode)
 			{
 
-				std::cout << "[Server] New Connection: " << Socket.remote_endpoint() << std::endl;
+				auto RemoteEndpoint = Socket.remote_endpoint();
+				std::cout << "[Server] New Connection: " << RemoteEndpoint << std::endl;
 				std::shared_ptr<CConnection> NewConnection = std::make_shared<CConnection>(CConnection::EOwner::kServer, IoContext, std::move(Socket), MessageToLocal, this);
-				auto RemoteEndpoint = NewConnection->GetRemoteEndpoint();
 				if (OnClientConnect(NewConnection))
 				{
 					ConnectionsStrand.post([this, NewConnection, RemoteEndpoint] {
 						auto Uint64Ip = NetworkHelper::EndpointToUint64Id(RemoteEndpoint);
 						if (NewConnection->ConnectToClient(Uint64Ip))
 						{
+							std::cout << "<" << RemoteEndpoint.address().to_v4().to_uint() << ">" << std::endl;
 							auto Result = ConnectionMap.emplace(RemoteEndpoint.address().to_v4().to_uint(), std::vector<std::shared_ptr<CConnection>>{std::move(NewConnection)});
 							if (!Result.second)
 							{
@@ -99,14 +100,15 @@ void CServer::ServerSharedReferenceRemove(std::shared_ptr<CConnection> Client)
 		[this, Client]() {
 			auto Endpoint = Client->GetRemoteEndpoint();
 			auto Iterator = ConnectionMap.find(Endpoint.address().to_v4().to_uint());
-			assert(Iterator != std::end(ConnectionMap));
-			for (auto& Client : Iterator->second)
+			if(Iterator != std::end(ConnectionMap))
 			{
-				if ((Endpoint.port() == Client->GetRemoteEndpoint().port()))
+				for (auto it = Iterator->second.begin(); it != Iterator->second.end(); it++)
 				{
-					Client.reset();
-					Iterator->second.erase(std::remove(std::begin(Iterator->second), std::end(Iterator->second), nullptr), std::end(Iterator->second));
-					break;
+					if ((Endpoint.port() == (*it)->GetRemoteEndpoint().port()))
+					{
+						Iterator->second.erase(it);
+						break;
+					}
 				}
 			}
 		}
@@ -116,26 +118,26 @@ void CServer::ServerSharedReferenceRemove(std::shared_ptr<CConnection> Client)
 void CServer::MessageClient(SMessage&& Msg, std::string Address, uint16_t Port)
 {
 	ConnectionsStrand.post(
-		[this, Port, Msg = std::move(Msg), AddressString = std::move(Address)]() mutable {
-		asio::error_code ErrorCode;
-		auto Address = asio::ip::address::from_string(AddressString, ErrorCode);
-		if (ErrorCode)
-		{
-			std::cout << "[Server] Parse Address Error: " << ErrorCode.message() << std::endl;
-			return;
-		}
-		auto Iterator = ConnectionMap.find(Address.to_v4().to_uint());
-		if (Iterator != std::end(ConnectionMap))
-		{
-			for (auto Client : Iterator->second)
+			[this, Port, Msg = std::move(Msg), AddressString = std::move(Address)]() mutable {
+			asio::error_code ErrorCode;
+			auto Address = asio::ip::address::from_string(AddressString, ErrorCode);
+			if (ErrorCode)
 			{
-				if ((Port == 0 || Port == Client->GetRemoteEndpoint().port()))
+				std::cout << "[Server] Parse Address Error: " << ErrorCode.message() << std::endl;
+				return;
+			}
+			auto Iterator = ConnectionMap.find(Address.to_v4().to_uint());
+			if (Iterator != std::end(ConnectionMap))
+			{
+				for (auto Client : Iterator->second)
 				{
-					Client->SendMessageToRemote(std::move(Msg));
+					if ((Port == 0 || Port == Client->GetRemoteEndpoint().port()))
+					{
+						Client->SendMessageToRemote(std::move(Msg));
+					}
 				}
 			}
 		}
-	}
 	);
 }
 
