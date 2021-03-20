@@ -3,8 +3,14 @@
 #include <memory>
 #include <iostream>
 #include "Message.h"
+#include "Connection.h"
 
-struct IMessageHandler;
+struct IMessageHandler
+{
+    IMessageHandler() = default;
+    virtual ~IMessageHandler() = default;
+    virtual void operator()(std::shared_ptr<CConnection> ConnectionPtr, std::vector<uint8_t>&& Data) = 0;
+};
 
 class CMessageHandlerManager
 {
@@ -20,20 +26,22 @@ private:
 
 };
 
-struct IMessageHandler
+
+class CCloseConnectionHandler : public IMessageHandler
 {
-    IMessageHandler() = default;
-    virtual ~IMessageHandler() = default;
-    virtual void operator()(std::vector<uint8_t>&& Data) = 0;
+    virtual void operator()(std::shared_ptr<CConnection> ConnectionPtr, std::vector<uint8_t>&& Data) override
+    {
+        ConnectionPtr->Disconnect();
+    }
 };
 
-class CTestMessageHandler : public IMessageHandler
+class CTestHandler : public IMessageHandler
 {
 
-    virtual void operator()(std::vector<uint8_t>&& Data)
+    virtual void operator()(std::shared_ptr<CConnection> ConnectionPtr, std::vector<uint8_t>&& Data) override
     {
         std::string str;
         str.append((char*)Data.data(), Data.size());
-        std::cout << str << "\n";
+        std::cout << "[Test] Recv: "<< str << "\n";
     }
 };

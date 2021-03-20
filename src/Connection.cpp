@@ -25,14 +25,14 @@ bool CConnection::ConnectToServer(const asio::ip::tcp::resolver::results_type& E
         {
             if (!ErrorCode)
             {
-                std::cout << "[Client] Connected!" << std::endl;
+                std::cout << "[Client] Connected!\n";
                 State = EState::Connected;
                 SendMessageToRemote(SMessage(EMessageId::kConnectToServer));
                 ReadHeader();
             }
             else
             {
-                std::cout << "[Client] ConnectToServer Failed!" << std::endl;
+                std::cout << "[Client] ConnectToServer Failed!\n";
                 State = EState::ConnectFailed;
             }
         });
@@ -98,13 +98,18 @@ void CConnection::OnErrorCode(std::error_code& ErrorCode)
 {
     auto Self(this->shared_from_this());
     // remote is shutdown if eof 
-    if (State != EState::Disconnect && asio::error::eof == ErrorCode)
+    if (asio::error::eof == ErrorCode && State != EState::Disconnect)
     {
         State = EState::Disconnect;
+        std::cout << "[Connection] " << HSLM_FUNC_LINE << " <"<< GetRemoteEndpointString() << "> Disconnect\n";
     } else {
-        State = EState::ErrorOccurred;
+        if (State != EState::Disconnect)
+        {
+            // Even after checking(State != EState::Disconnect), it is still possible that this is printed out due to multithreading problem
+            State = EState::ErrorOccurred;
+            std::cout << "[Connection] " << HSLM_FUNC_LINE << " <" << GetRemoteEndpointString() << "> Error Occurred, ErrorMessage: " << ErrorCode.message() << "\n";
+        }
     }
-    std::cout << "[Connection] " << HSLM_FUNC_LINE << GetRemoteEndpointString() << " disconnect, ErrorCode: " << ErrorCode.message() << "\n";
     if (Owner == EOwner::kServer){
         bool Expected = true;
         if(ServerSharedRef.compare_exchange_strong(Expected, false))

@@ -27,7 +27,7 @@ bool CClient::Connect(const std::string Host, const uint16_t Port)
     }
     catch (const std::exception& Exception)
     {
-        std::cout << "[Client] Exception: " << Exception.what() << std::endl;
+        std::cout << "[Client] Exception: " << Exception.what() << "\n";
         return false;
     }
     return true;
@@ -66,7 +66,7 @@ void CClient::Update(size_t MaxMessages)
         auto MsgTo = std::move(MessageToLocal.pop_front());
         IMessageHandler* MessageHandler = MessageHandlerManager.GetMessageHandler(MsgTo.Message.Header.MessageId);
         if (MessageHandler != nullptr) {
-            (*MessageHandler)(std::move(MsgTo.Message.Data));
+            (*MessageHandler)(MsgTo.RemoteConnection,std::move(MsgTo.Message.Data));
         }
         else {
             OnMessage(MsgTo.RemoteConnection, std::move(MsgTo.Message));

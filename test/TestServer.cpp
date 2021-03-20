@@ -9,8 +9,8 @@
 int main()
 {
 	CServer Server;
-	Server.GetMessageHandlerManager().RegisterMessageHandler(EMessageId::kTestMessage, std::make_unique<CTestMessageHandler>());
-
+	Server.GetMessageHandlerManager().RegisterMessageHandler(EMessageId::kCloseConnection, std::make_unique<CCloseConnectionHandler>());
+	Server.GetMessageHandlerManager().RegisterMessageHandler(EMessageId::kTestMessage, std::make_unique<CTestHandler>());
 	Server.Start(4156);
 	while (1)
 	{

@@ -21,7 +21,7 @@ bool CServer::Start(uint16_t Port, uint32_t NumThread)
 		Acceptor.set_option(asio::ip::tcp::acceptor::reuse_address(true));
 		Acceptor.bind(Endpoint);
 		Acceptor.listen();
-		std::cout << "[Server] Start!" << std::endl;
+		std::cout << "[Server] Start!\n";
 		WaitForClientConnection();
 		if (NumThread == 0)
 			NumThread = std::thread::hardware_concurrency();
@@ -32,7 +32,7 @@ bool CServer::Start(uint16_t Port, uint32_t NumThread)
 	}
 	catch (const std::exception& Expection)
 	{
-		std::cout << "[Server] Exception: " << Expection.what() << std::endl;
+		std::cout << "[Server] Exception: " << Expection.what() << "\n";
 		return false;
 	}
 	return true;
@@ -42,7 +42,7 @@ void CServer::Stop()
 {
 	IoContext.stop();
 	WaitThreadJoin();
-	std::cout << "[Server] Stopped!" << std::endl;
+	std::cout << "[Server] Stopped!\n";
 }
 
 void CServer::WaitThreadJoin()
@@ -63,7 +63,7 @@ void CServer::WaitForClientConnection()
 			{
 
 				auto RemoteEndpoint = Socket.remote_endpoint();
-				std::cout << "[Server] New Connection: " << RemoteEndpoint << std::endl;
+				std::cout << "[Server] New Connection: " << RemoteEndpoint << "\n";
 				std::shared_ptr<CConnection> NewConnection = std::make_shared<CConnection>(CConnection::EOwner::kServer, IoContext, std::move(Socket), MessageToLocal, this);
 				if (OnClientConnect(NewConnection))
 				{
@@ -71,25 +71,24 @@ void CServer::WaitForClientConnection()
 						auto Uint64Ip = NetworkHelper::EndpointToUint64Id(RemoteEndpoint);
 						if (NewConnection->ConnectToClient(Uint64Ip))
 						{
-							std::cout << "<" << RemoteEndpoint.address().to_v4().to_uint() << ">" << std::endl;
 							auto Result = ConnectionMap.emplace(RemoteEndpoint.address().to_v4().to_uint(), std::vector<std::shared_ptr<CConnection>>{std::move(NewConnection)});
 							if (!Result.second)
 							{
 								Result.first->second.emplace_back(std::move(NewConnection));
 							}
-							std::cout << "[Server] " << "[ID:" << Uint64Ip << "] Connection Approved" << std::endl;
+							std::cout << "[Server] " << "[ID:" << Uint64Ip << "] Connection Approved\n";
 						}
 						});
 				}
 				else
 				{
-					std::cout << "[Server] " << RemoteEndpoint << " Connection Denied" << std::endl;
+					std::cout << "[Server] " << RemoteEndpoint << " Connection Denied\n";
 				}
 				WaitForClientConnection();
 			}
 			else
 			{
-				std::cout << "[Server] Accept Connection Error: " << ErrorCode.message() << std::endl;
+				std::cout << "[Server] Accept Connection Error: " << ErrorCode.message() << "\n";
 			}
 		});
 }
@@ -123,7 +122,7 @@ void CServer::MessageClient(SMessage&& Msg, std::string Address, uint16_t Port)
 			auto Address = asio::ip::address::from_string(AddressString, ErrorCode);
 			if (ErrorCode)
 			{
-				std::cout << "[Server] Parse Address Error: " << ErrorCode.message() << std::endl;
+				std::cout << "[Server] Parse Address Error: " << ErrorCode.message() << "\n";
 				return;
 			}
 			auto Iterator = ConnectionMap.find(Address.to_v4().to_uint());
@@ -207,7 +206,7 @@ void CServer::Update(size_t MaxMessages)
 			//Find Handler
 			IMessageHandler* MessageHandler = MessageHandlerManager.GetMessageHandler(MsgTo.Message.Header.MessageId);
 			if (MessageHandler != nullptr) {
-				(*MessageHandler)(std::move(MsgTo.Message.Data));
+				(*MessageHandler)(MsgTo.RemoteConnection, std::move(MsgTo.Message.Data));
 			}
 			else {
 				OnMessage(MsgTo.RemoteConnection, std::move(MsgTo.Message));
