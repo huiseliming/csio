@@ -31,6 +31,7 @@ set(hslm_csio_source
 
 add_library(hslm_csio ${hslm_csio_header} ${hslm_csio_source})
 add_dependencies(hslm_csio check_git)
+
 target_include_directories(hslm_csio PUBLIC $<BUILD_INTERFACE:${HSLM_CSIO_SOURCE_DIR}/include/> # for client in subdirectory
                                             $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for generated files in build mode
                                             $<INSTALL_INTERFACE:${HSLM_CSIO_INCLUDE_INSTALL_DIR}> # for client in install mode
@@ -43,7 +44,7 @@ target_compile_definitions(hslm_csio PUBLIC
                            HSLM_CSIO_VERSION_PATCH=${HSLM_CSIO_VERSION_PATCH})
 
 set_target_properties(hslm_csio PROPERTIES
-                           OUTPUT_NAME "hslm_csio-${FOONATHAN_MEMORY_VERSION}"
+                           OUTPUT_NAME "hslm_csio-${HSLM_CSIO_VERSION}"
                            POSITION_INDEPENDENT_CODE ON)
 
 target_link_libraries(hslm_csio asio)
